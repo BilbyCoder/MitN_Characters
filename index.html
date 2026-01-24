@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <title>
+            Mutants in the Now - Character Sheet Manager
+        </title>
+    </head>
+
+    <body>
+        <div>
+            <table attributes id="attribute-block">
+                <tr>
+                    <th colspan="2">Attribute Value</th>
+                    <th colspan="2">Prime Modifier</th>
+                    <th>Skill Base</th>
+                    <th>Skill Gain</th>
+                    <th>Damage Dice</th>
+                    <th>GOO-P</th>
+                    <th>Roll</th>
+                    <th>Base Result</th>
+                    <th>Dice</th>
+                </tr>
+                
+            </table>
+            <style>
+                tr:nth-child(even) {
+                    background-color: rgba(157, 253, 205, 0.4);
+                    
+                }
+            </style>
+        </div>
+
+        <script type="module">
+            import { attribute_names, attribute_table } from "./modules/data/attribute_data.js";
+            import { get_attribute, roll_attribute } from "./modules/attribute.js";
+            const dice_faces = ["⚀","⚁","⚂","⚃","⚄","⚅"]
+            function roll_row(row) {
+
+            }
+
+            let character = {}
+
+            function update_row(attribute_line, row) {
+                add_cell(attribute_line.name, row, 0);
+                add_cell(attribute_line.value, row, 1);
+                add_cell(`+${attribute_line.short}`, row, 2);
+                add_cell(attribute_line.mod, row, 3);
+                add_cell(`${attribute_line.skill_base}%`, row, 4);
+                add_cell(`${attribute_line.skill_gain}%`, row, 5);
+                add_cell(attribute_line.damage_dice[2], row, 6);
+                add_cell(attribute_line.goop, row, 7);
+
+                if (attribute_line.roll !== undefined) {
+                    console.log(attribute_line)
+                    add_cell(attribute_line.base_roll.total, row, 9)
+                    let d1 = dice_faces[attribute_line.base_roll.results[0] - 1]
+                    let d2 = dice_faces[attribute_line.base_roll.results[1] - 1]
+                    let d3 = dice_faces[attribute_line.base_roll.results[2] - 1]
+                    let d4 = dice_faces[attribute_line.base_roll.results[3] - 1]
+                    add_cell(`${d1}${d2}${d3}${d4}`, row, 10)
+                }
+                
+            }
+
+            function add_cell(cell_string, row, index)
+            {
+                if (row.cells[index] === undefined) {
+                    console.log("Creating Cell")       
+                    var cell = row.insertCell(index)
+                } else {
+                    console.log("Updating existing cell")
+                    var cell = row.cells[index]
+                }
+                
+                cell.innerHTML = `${cell_string}`
+                console.log(cell_string)
+            }
+
+            let character_data = []
+            let attribute_block = document.getElementById("attribute-block")
+            
+            for (var attr in attribute_names) {
+                let full_name = attribute_names[attr][0]
+                let short_name = attribute_names[attr][1]
+                let attribute_line = get_attribute(full_name, short_name, -1);
+                let new_row = attribute_block.insertRow(-1);
+                new_row.id = `row_${attr}`
+                
+                update_row(attribute_line, new_row)
+                
+                let reroll_cell = new_row.insertCell(-1)
+                let link = document.createElement('a')
+                link.href = "#"
+                link.innerText = "🎲"
+                link.onclick = function (evt) {
+                    attribute_line = roll_attribute(full_name, short_name)
+                    update_row(attribute_line, new_row)
+                }
+
+                reroll_cell.append(link)
+
+            }
+        </script>
+    </body>
+</html>
