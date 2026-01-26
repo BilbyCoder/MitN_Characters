@@ -9,7 +9,8 @@ function roll_attribute (name, short) {
 
 function get_empty_attribute(name, short) {
     return {
-        "base_roll": "--",
+        "base_roll": undefined,
+        "base_modification": 0,
         "name": name,
         "short": short,
         "value": "--",

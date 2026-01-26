@@ -17,20 +17,23 @@ function roll_die(sides) {
 
 // Roll a set of dice of the same sides.  Returns a total, and the individual results
 function roll_dice_set(number, sides) {
-    let total = 0;
     let dice_set = [];
     
     for (let i = 0; i < number; i++) {
-        let result = roll_die(sides);
-        total += result;
-        dice_set.push(result)
+        dice_set.push(roll_die(sides))
     }
 
+    return restore_dice_set(dice_set, sides)
+}
+
+function restore_dice_set(results, sides) {
+    let total = results.reduce((current_total, current_value) => current_total + current_value);
+
     return {
-        number: number,
+        number: results.length,
         sides: sides,
         total: total,
-        results: dice_set
+        results: results
     }
 }
 
@@ -45,4 +48,4 @@ function roll_percent() {
     return percent
 }
 
-export {clamp, roll_die, roll_dice_set, roll_percent}
+export {clamp, roll_die, roll_dice_set, restore_dice_set, roll_percent}

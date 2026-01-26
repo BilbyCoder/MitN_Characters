@@ -13,7 +13,7 @@
     </head>
 
     <body>
-        <div><label>Name: <input/></label id="char_name"></div>
+        <div><label>Name: <input id="char_name"/></label></div>
         <div>
             <h1>Attributes</h1>
             <table attributes id="attribute-block">
@@ -35,7 +35,7 @@
         <div>
             <h1>Background Rolls</h1>
             <label><button id="add_background">Add Background Roll</button></label>
-            <table id="background_roll">
+            <table id="background_block">
                 <th>Table ID</th>
                 <th>Dice Result</th>
                 <th>Description</th>
@@ -45,15 +45,25 @@
             </table>
         </div>
 
+        <div>
+            <h1>Save and Restore</h1>
+            <label>Character Code:<br><textarea id="char_code"></textarea></label>
+            <br>
+            <button name="update" id="update_button">Update Code</button><button id="load_character">Load Code</button>
+        </div>
+
         <script type="module">
             import { attribute_names, attribute_table } from "./modules/data/attribute_data.js";
             import { get_attribute, roll_attribute} from "./modules/attribute.js";
-            import { roll_percent} from "./modules/util/utils.js"
+            import { roll_percent, restore_dice_set} from "./modules/util/utils.js"
             
             // Attributes
             const dice_faces = ["⚀","⚁","⚂","⚃","⚄","⚅"]
+            let char_name = ""
             let attribute_rolls = []
-            function update_attribute_row(attribute_line, row, attribute_id) {
+            
+            function update_attribute_row(attribute_line, row) {
+                let attribute_id = row.rowIndex - 1;
                 add_cell(attribute_line.name, row, 0);
                 add_cell(attribute_line.value, row, 1);
                 add_cell(`+${attribute_line.short}`, row, 2);
@@ -85,16 +95,16 @@
                     bonus_field.setAttribute("style", "width: 4em")
                     bonus_field.onchange = function(evt) {
                         attribute_line.base_modification = Number(evt.target.value)
+                        
                         let attribute_total = attribute_line.base_roll.total + attribute_line.base_modification;
                         row.cells[1].innerHTML = `${attribute_total}`;
                         let new_values = get_attribute(attribute_line.name, attribute_line.short, attribute_line.base_roll, attribute_line.base_modification)
-                        attribute_rolls[attribute_id] = new_values
-                        console.log(attribute_rolls[attribute_id])
-                        update_attribute_row(new_values, row)
+
+                        update_attribute_row(new_values, row, attribute_id)
                     }
 
                     attribute_bonus.replaceChildren(bonus_field);
-
+                    attribute_rolls[attribute_id] = attribute_line
                 }
             }
 
@@ -112,6 +122,8 @@
             let character_data = []
             let attribute_block = document.getElementById("attribute-block")
             
+
+
             for (var attr in attribute_names) {
                 let full_name = attribute_names[attr][0]
                 let short_name = attribute_names[attr][1]
@@ -130,17 +142,23 @@
                 link.onclick = function (evt) {
                     attribute_line = roll_attribute(full_name, short_name)
                     update_attribute_row(attribute_line, new_row, attr)
-                    attribute_rolls[attr] = attribute_line
                 }
 
                 reroll_cell.append(link)
             }
 
+            let backgrounds = []
+            function save_background_row(row)
+            {
+
+            }
+
             // Backgrounds
             let background_button = document.getElementById("add_background");
-            let background_table = document.getElementById("background_roll")
+            let background_table = document.getElementById("background_block")
             background_button.onclick = function (evt) {
                 let new_row = background_table.insertRow(-1)
+                background_id = new_row.rowIndex - 1
                 
                 let id_cell = new_row.insertCell(-1)
                 id_cell.innerHTML = "<label> ID: <input maxLength =\"4\" /> </label>"
@@ -161,9 +179,120 @@
                 link.onclick = function (evt) {
                     let table_result = roll_percent()
                     roll_cell.innerText = `${table_result.results[0]}${table_result.results[1]}`
+                    save_background_row(new_row)
                 }
 
                 reroll_cell.append(link)
+            }
+
+            // Encode the character
+            let name = document.getElementById("char_name")
+            let char_code = document.getElementById("char_code")
+            let text_encoder = new TextEncoder()
+            name.onchange = function (evt) {
+                char_name = evt.target.value;
+                generate_character_code()
+            }
+
+            let update_button = document.getElementById("update_button")
+            
+            update_button.onclick = function(evt) {
+                generate_character_code()
+            }
+
+            function encode_string(enc_string) {
+
+                let u8_string = text_encoder.encode(enc_string)
+                return [u8_string, u8_string.length]
+            }
+
+            function generate_character_code()
+            {
+                let buffer_size = 0
+                // first the name is encoded
+                let name_enc = encode_string(name.value)
+                buffer_size += 2 + name_enc[1]
+                
+                // next we encode the attribute rolls and modifications.  Each attribute
+                // is made up of the four dice rolls and any modification the user has
+                // applied.
+                let attributes = []
+                for (attr in attribute_rolls) {
+                    let current_attribute = attribute_rolls[attr]
+                    
+                    if (current_attribute.base_roll === undefined) {
+                        attributes = attributes.concat([0,0,0,0])
+                    }
+                    else
+                    {
+                        attributes = attributes.concat(current_attribute.base_roll.results)
+                    }
+
+                    attributes.push(current_attribute.base_modification)
+                }
+
+                buffer_size += attributes.length
+
+                // next comes the background rolls
+
+
+                let buffer = new ArrayBuffer(buffer_size)
+                let view = new DataView(buffer)
+                let offset = 0
+                view.setInt16(offset, name_enc[1])
+                offset += 2
+                
+                for (let i = 0; i < name_enc[1]; i++) {
+                    view.setUint8(offset, name_enc[0][i])
+                    offset += 1
+                }
+
+                for (let i = 0; i < attributes.length; i++) {
+                    view.setInt8(offset, attributes[i])
+                    offset += 1
+                }
+
+                let buffer_array = new Uint8Array(buffer)
+
+               char_code.value = buffer_array.toBase64({"alphabet":"base64url"})
+            }
+
+            let load_character_button = document.getElementById("load_character")
+            let decoder = new TextDecoder()
+            load_character_button.onclick = function (evt) {
+                load_code()
+            }
+
+            function load_code()
+            {
+                let buffer_array = Uint8Array.fromBase64(char_code.value, {"alphabet":"base64url"})
+                let view = new DataView(buffer_array.buffer)
+                let offset = 0
+                
+                // first we restore the name
+                let name_length = view.getUint16(offset)
+                offset += 2
+
+                name.value = decoder.decode(buffer_array.slice(offset, name_length + offset))
+                offset += name_length
+                
+                // now we restore the attributes
+                for (let i = 0; i  < 8; i++) {
+                    let attribute_offset = i * 5 + offset
+                    let d1 = view.getInt8(attribute_offset)
+                    let d2 = view.getInt8(attribute_offset + 1)
+                    let d3 = view.getInt8(attribute_offset + 2)
+                    let d4 = view.getInt8(attribute_offset + 3)
+                    let mod = view.getInt8(attribute_offset + 4)
+                    let roll_result = restore_dice_set([d1, d2, d3, d4], 6)
+
+                    let full_name = attribute_names[i][0];
+                    let short_name = attribute_names[i][1];
+
+                    let attribute_line = get_attribute(full_name, short_name, roll_result, mod)
+                    let current_row = attribute_block.rows[i + 1]
+                    update_attribute_row(attribute_line, current_row, i)
+                }
             }
         </script>
     </body>
