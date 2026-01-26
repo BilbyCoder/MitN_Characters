@@ -53,7 +53,7 @@
             // Attributes
             const dice_faces = ["⚀","⚁","⚂","⚃","⚄","⚅"]
             let attribute_rolls = []
-            function update_attribute_row(attribute_line, row) {
+            function update_attribute_row(attribute_line, row, attribute_id) {
                 add_cell(attribute_line.name, row, 0);
                 add_cell(attribute_line.value, row, 1);
                 add_cell(`+${attribute_line.short}`, row, 2);
@@ -88,6 +88,8 @@
                         let attribute_total = attribute_line.base_roll.total + attribute_line.base_modification;
                         row.cells[1].innerHTML = `${attribute_total}`;
                         let new_values = get_attribute(attribute_line.name, attribute_line.short, attribute_line.base_roll, attribute_line.base_modification)
+                        attribute_rolls[attribute_id] = new_values
+                        console.log(attribute_rolls[attribute_id])
                         update_attribute_row(new_values, row)
                     }
 
@@ -127,7 +129,7 @@
                 link.innerText = "🎲"
                 link.onclick = function (evt) {
                     attribute_line = roll_attribute(full_name, short_name)
-                    update_attribute_row(attribute_line, new_row)
+                    update_attribute_row(attribute_line, new_row, attr)
                     attribute_rolls[attr] = attribute_line
                 }
 
