@@ -34,4 +34,15 @@ function roll_dice_set(number, sides) {
     }
 }
 
-export {clamp, roll_die, roll_dice_set}
+function roll_percent() {
+    let percent = roll_dice_set(2, 10)
+    percent.results[0] = percent.results[0] % 10
+    percent.results[1] = percent.results[1] % 10
+    percent.total = percent.results[0] * 10 + percent.results[1]
+
+    if (percent.total === 0) percent.total = 100
+
+    return percent
+}
+
+export {clamp, roll_die, roll_dice_set, roll_percent}

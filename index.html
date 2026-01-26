@@ -5,10 +5,17 @@
         <title>
             Mutants in the Now - Character Sheet Manager
         </title>
+        <style>
+                tr:nth-child(even) {
+                    background-color: rgba(157, 253, 205, 0.4);
+                }
+        </style>
     </head>
 
     <body>
+        <div><label>Name: <input/></label id="char_name"></div>
         <div>
+            <h1>Attributes</h1>
             <table attributes id="attribute-block">
                 <tr>
                     <th colspan="2">Attribute Value</th>
@@ -20,28 +27,33 @@
                     <th>Roll</th>
                     <th>Base Result</th>
                     <th>Dice</th>
+                    <th>Bonus</th>
                 </tr>
-                
             </table>
-            <style>
-                tr:nth-child(even) {
-                    background-color: rgba(157, 253, 205, 0.4);
-                    
-                }
-            </style>
+        </div>
+
+        <div>
+            <h1>Background Rolls</h1>
+            <label><button id="add_background">Add Background Roll</button></label>
+            <table id="background_roll">
+                <th>Table ID</th>
+                <th>Dice Result</th>
+                <th>Description</th>
+                <th>Bonuses</th>
+                <th></th>
+                <th></th>
+            </table>
         </div>
 
         <script type="module">
             import { attribute_names, attribute_table } from "./modules/data/attribute_data.js";
-            import { get_attribute, roll_attribute } from "./modules/attribute.js";
+            import { get_attribute, roll_attribute} from "./modules/attribute.js";
+            import { roll_percent} from "./modules/util/utils.js"
+            
+            // Attributes
             const dice_faces = ["⚀","⚁","⚂","⚃","⚄","⚅"]
-            function roll_row(row) {
-
-            }
-
-            let character = {}
-
-            function update_row(attribute_line, row) {
+            let attribute_rolls = []
+            function update_attribute_row(attribute_line, row) {
                 add_cell(attribute_line.name, row, 0);
                 add_cell(attribute_line.value, row, 1);
                 add_cell(`+${attribute_line.short}`, row, 2);
@@ -51,30 +63,48 @@
                 add_cell(attribute_line.damage_dice[2], row, 6);
                 add_cell(attribute_line.goop, row, 7);
 
+
                 if (attribute_line.roll !== undefined) {
-                    console.log(attribute_line)
                     add_cell(attribute_line.base_roll.total, row, 9)
                     let d1 = dice_faces[attribute_line.base_roll.results[0] - 1]
                     let d2 = dice_faces[attribute_line.base_roll.results[1] - 1]
                     let d3 = dice_faces[attribute_line.base_roll.results[2] - 1]
                     let d4 = dice_faces[attribute_line.base_roll.results[3] - 1]
-                    add_cell(`${d1}${d2}${d3}${d4}`, row, 10)
+                    add_cell(`${d1}${d2}${d3}${d4}`, row, 10);
+
+                    let attribute_bonus
+                    if (row.cells[11] === undefined) {
+                        attribute_bonus = row.insertCell(11);
+                    } else {
+                        attribute_bonus = row.cells[11]
+                    }
+
+                    let bonus_field = document.createElement("input")
+                    bonus_field.type="number"
+                    bonus_field.value = attribute_line.base_modification
+                    bonus_field.setAttribute("style", "width: 4em")
+                    bonus_field.onchange = function(evt) {
+                        attribute_line.base_modification = Number(evt.target.value)
+                        let attribute_total = attribute_line.base_roll.total + attribute_line.base_modification;
+                        row.cells[1].innerHTML = `${attribute_total}`;
+                        let new_values = get_attribute(attribute_line.name, attribute_line.short, attribute_line.base_roll, attribute_line.base_modification)
+                        update_attribute_row(new_values, row)
+                    }
+
+                    attribute_bonus.replaceChildren(bonus_field);
+
                 }
-                
             }
 
             function add_cell(cell_string, row, index)
             {
-                if (row.cells[index] === undefined) {
-                    console.log("Creating Cell")       
+                if (row.cells[index] === undefined) {     
                     var cell = row.insertCell(index)
                 } else {
-                    console.log("Updating existing cell")
                     var cell = row.cells[index]
                 }
                 
                 cell.innerHTML = `${cell_string}`
-                console.log(cell_string)
             }
 
             let character_data = []
@@ -84,10 +114,12 @@
                 let full_name = attribute_names[attr][0]
                 let short_name = attribute_names[attr][1]
                 let attribute_line = get_attribute(full_name, short_name, -1);
+                attribute_rolls[attr] = attribute_line
+
                 let new_row = attribute_block.insertRow(-1);
                 new_row.id = `row_${attr}`
                 
-                update_row(attribute_line, new_row)
+                update_attribute_row(attribute_line, new_row)
                 
                 let reroll_cell = new_row.insertCell(-1)
                 let link = document.createElement('a')
@@ -95,11 +127,41 @@
                 link.innerText = "🎲"
                 link.onclick = function (evt) {
                     attribute_line = roll_attribute(full_name, short_name)
-                    update_row(attribute_line, new_row)
+                    update_attribute_row(attribute_line, new_row)
+                    attribute_rolls[attr] = attribute_line
                 }
 
                 reroll_cell.append(link)
+            }
 
+            // Backgrounds
+            let background_button = document.getElementById("add_background");
+            let background_table = document.getElementById("background_roll")
+            background_button.onclick = function (evt) {
+                let new_row = background_table.insertRow(-1)
+                
+                let id_cell = new_row.insertCell(-1)
+                id_cell.innerHTML = "<label> ID: <input maxLength =\"4\" /> </label>"
+                
+                let roll_cell = new_row.insertCell(-1)
+                roll_cell.innerText = "--"
+
+                let desc_cell = new_row.insertCell(-1)
+                desc_cell.innerHTML = "<textarea />"
+
+                let bonuses = new_row.insertCell(-1)
+                bonuses.innerHTML = "<textarea />"
+
+                let reroll_cell = new_row.insertCell(-1)
+                let link = document.createElement('a')
+                link.href = "#"
+                link.innerText = "🎲"
+                link.onclick = function (evt) {
+                    let table_result = roll_percent()
+                    roll_cell.innerText = `${table_result.results[0]}${table_result.results[1]}`
+                }
+
+                reroll_cell.append(link)
             }
         </script>
     </body>

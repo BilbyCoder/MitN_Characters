@@ -17,7 +17,7 @@ function get_empty_attribute(name, short) {
         "skill_base": "--",
         "skill_gain": "-",
         "damage_dice": [,,"-D-"],
-        "goop": "--"
+        "goop": "--",
     }
 }
 
@@ -26,12 +26,13 @@ function get_attribute(name, short, base_attribute, base_modification = 0) {
         return get_empty_attribute(name, short)
     }
 
-    let modded_attribute = base_attribute.total + base_modification
+    let modded_attribute = clamp(base_attribute.total + base_modification, 1, 30)
     let attribute = attribute_table[clamp(modded_attribute - 1, 0, 29)];
     let goop = attribute_table[clamp(base_attribute.total-1, 0, 29)][5]
 
     return {
         "base_roll": base_attribute,
+        "base_modification": base_modification,
         "name": name,
         "short": short,
         "value": modded_attribute,
@@ -40,7 +41,7 @@ function get_attribute(name, short, base_attribute, base_modification = 0) {
         "skill_gain" : attribute[3],
         "damage_dice": attribute[4],
         "goop": goop,
-        "roll": base_attribute.total
+        "roll": base_attribute.total,
     }
 }
 
