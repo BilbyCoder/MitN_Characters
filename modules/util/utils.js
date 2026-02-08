@@ -37,8 +37,8 @@ function restore_dice_set(results, sides) {
     }
 }
 
-function roll_percent() {
-    let percent = roll_dice_set(2, 10)
+function roll_percent(results) {
+    let percent = results? restore_dice_set(results, 10) : roll_dice_set(2, 10)
     percent.results[0] = percent.results[0] % 10
     percent.results[1] = percent.results[1] % 10
     percent.total = percent.results[0] * 10 + percent.results[1]

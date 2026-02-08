@@ -37,11 +37,12 @@
             <label><button id="add_background">Add Background Roll</button></label>
             <table id="background_block">
                 <th>Table ID</th>
-                <th>Dice Result</th>
+                <th>Result</th>
                 <th>Description</th>
                 <th>Bonuses</th>
+                <th>Roll Result</th>
+                <th>Modifier</th>
                 <th>Roll</th>
-                <th></th>
             </table>
         </div>
 
@@ -55,6 +56,7 @@
         <script type="module">
             import { attribute_names, attribute_table } from "./modules/data/attribute_data.js";
             import { get_attribute, roll_attribute} from "./modules/attribute.js";
+            import { new_background} from "./modules/backgrounds.js";
             import { roll_percent, restore_dice_set} from "./modules/util/utils.js"
             
             // Attributes
@@ -80,7 +82,12 @@
                     let d2 = dice_faces[attribute_line.base_roll.results[1] - 1]
                     let d3 = dice_faces[attribute_line.base_roll.results[2] - 1]
                     let d4 = dice_faces[attribute_line.base_roll.results[3] - 1]
-                    add_cell(`${d1}${d2}${d3}${d4}`, row, 10);
+
+                    if (d1 === undefined || d2 === undefined || d3 === undefined || d4 === undefined) {
+                        add_cell(`----`, row, 10)
+                    } else  {
+                        add_cell(`${d1}${d2}${d3}${d4}`, row, 10);
+                    }
 
                     let attribute_bonus
                     if (row.cells[11] === undefined) {
@@ -108,6 +115,16 @@
                 }
             }
 
+            function update_background_row(data, row)
+            {
+                row.cells[0].children[0].value = data.table_id;
+                row.cells[1].innerText = data.roll ? data.roll.total + data.modifier : "--";
+                row.cells[2].children[0].value = data.description;
+                row.cells[3].children[0].value = data.bonuses;
+                row.cells[4].innerText = data.roll ? `${data.roll.results[0]}${data.roll.results[1]}` : "--";
+                row.cells[5].children[0].value = data.modifier ? data.modifier : 0;
+            }
+
             function add_cell(cell_string, row, index)
             {
                 if (row.cells[index] === undefined) {     
@@ -121,9 +138,7 @@
 
             let character_data = []
             let attribute_block = document.getElementById("attribute-block")
-            
-
-
+        
             for (var attr in attribute_names) {
                 let full_name = attribute_names[attr][0]
                 let short_name = attribute_names[attr][1]
@@ -148,41 +163,87 @@
             }
 
             let backgrounds = []
-            function save_background_row(row)
-            {
-
-            }
 
             // Backgrounds
             let background_button = document.getElementById("add_background");
-            let background_table = document.getElementById("background_block")
-            background_button.onclick = function (evt) {
+            let background_table = document.getElementById("background_block");
+
+            function create_background_row(background_row)
+            {
                 let new_row = background_table.insertRow(-1)
-                let background_id = new_row.rowIndex - 1
                 
                 let id_cell = new_row.insertCell(-1)
-                id_cell.innerHTML = "<label> ID: <input maxLength =\"4\" /> </label>"
+                //id_cell.innerHTML = "<label> ID: <input maxLength =\"6\" /> </label>"
+                let id_label = document.createElement("label")
+                let id_input = document.createElement("input")
                 
-                let roll_cell = new_row.insertCell(-1)
-                roll_cell.innerText = "--"
-
-                let desc_cell = new_row.insertCell(-1)
-                desc_cell.innerHTML = "<textarea />"
-
-                let bonuses = new_row.insertCell(-1)
-                bonuses.innerHTML = "<textarea />"
-
-                let reroll_cell = new_row.insertCell(-1)
-                let link = document.createElement('a')
-                link.href = "#"
-                link.innerText = "🎲"
-                link.onclick = function (evt) {
-                    let table_result = roll_percent()
-                    roll_cell.innerText = `${table_result.results[0]}${table_result.results[1]}`
-                    save_background_row(new_row)
+                id_input.setAttribute("maxLength", "6")
+                id_input.onchange = function(evt) {
+                    background_row.table_id = evt.target.value
+                    update_background_row(background_row, new_row)
                 }
 
-                reroll_cell.append(link)
+                id_cell.appendChild(id_input)
+                
+                let result_cell = new_row.insertCell(-1)
+
+                let description_cell = new_row.insertCell(-1)
+                let description_input = document.createElement("textarea")
+                description_input.onchange = function (evt) {
+                    background_row.description = evt.target.value;
+                    update_background_row(background_row, new_row);
+                }
+                description_cell.appendChild(description_input)
+
+                let bonus_cell = new_row.insertCell(-1)
+                let bonus_input = document.createElement("textarea")
+                bonus_input.onchange = function(evt) {
+                    background_row.bonuses = evt.target.value;
+                    update_background_row(background_row, new_row)
+                }
+
+                bonus_cell.appendChild(bonus_input)
+
+                let roll_result = new_row.insertCell(-1)
+
+                let modifier_cell = new_row.insertCell(-1)
+                let modifier_input = document.createElement("input");  
+                modifier_input.type = "number"
+                modifier_input.min = -100
+                modifier_input.max = 100
+                modifier_input.value = 0
+                modifier_input.setAttribute("style", "width: 4em")
+                modifier_input.onchange = function (evt) {
+                    console.log(evt);
+                    background_row.modifier = evt.target.valueAsNumber
+                    update_background_row(background_row, new_row)
+                }
+
+                modifier_cell.appendChild(modifier_input)
+
+                let reroll_cell = new_row.insertCell(-1)
+                let roll_link = document.createElement('a')
+                roll_link.href = "#"
+                roll_link.innerText = "🎲"
+                roll_link.onclick = function (evt) {
+                    background_row.roll = roll_percent()
+                    update_background_row(background_row, new_row)
+                }
+                reroll_cell.append(roll_link)
+
+                let save_cell = new_row.insertCell(-1)
+                let save_link = document.createElement('a')
+                save_link.href = "#"
+                
+                save_cell.append(save_link)
+
+                backgrounds.push(background_row)
+                update_background_row(background_row, new_row)
+                console.log(backgrounds)
+            }
+
+            background_button.onclick = function (evt) {
+                create_background_row(new_background())
             }
 
             // Encode the character
@@ -201,9 +262,22 @@
             }
 
             function encode_string(enc_string) {
-
+                if (!enc_string) enc_string = ""
                 let u8_string = text_encoder.encode(enc_string)
                 return [u8_string, u8_string.length]
+            }
+
+            function write_encode_to_data(encoded_string, offset, dataview)
+            {
+                let string_length = encoded_string[1];
+                dataview.setUint16(offset, string_length)
+                offset += 2
+
+                for (let index = 0; index < string_length; index += 1) {
+                    dataview.setUint8(offset + index, encoded_string[0][index])
+                }
+
+                return string_length + 2
             }
 
             function generate_character_code()
@@ -233,23 +307,61 @@
 
                 buffer_size += attributes.length
 
-                // next comes the background rolls
+                console.log(background_table.rows.length)
+                
+                let background_data = []
+                for (let background_id in backgrounds)
+                {
+                    let data = backgrounds[background_id];
+                    let table_id = encode_string(data.table_id);
+                    let description = encode_string(data.description);
+                    let bonuses = encode_string(data.bonuses);
+                    buffer_size += 9 + table_id[1] + description[1] + bonuses[1];
 
+                    background_data.push({
+                        table_id: table_id,
+                        roll: data.roll,
+                        description: description,
+                        bonuses: bonuses,
+                        modifier: data.modifier
+                    })
+                }
+
+                buffer_size += 1 // To acomodate how many background tables there are
 
                 let buffer = new ArrayBuffer(buffer_size)
                 let view = new DataView(buffer)
-                let offset = 0
-                view.setInt16(offset, name_enc[1])
-                offset += 2
-                
-                for (let i = 0; i < name_enc[1]; i++) {
-                    view.setUint8(offset, name_enc[0][i])
-                    offset += 1
-                }
+                let offset = 0                
+                offset += write_encode_to_data(name_enc, offset, view)
 
                 for (let i = 0; i < attributes.length; i++) {
                     view.setInt8(offset, attributes[i])
                     offset += 1
+                }
+
+                view.setUint8(offset, background_data.length)
+                offset += 1
+
+                for (let background_id in background_data) {
+                    let data = background_data[background_id];
+                    offset += write_encode_to_data(data.table_id, offset, view);
+                    offset += write_encode_to_data(data.description, offset, view);
+                    offset += write_encode_to_data(data.bonuses, offset, view);
+
+                    if (data.roll) {
+                        view.setUint8(offset, data.roll.results[0]);
+                        offset += 1;
+                        view.setUint8(offset, data.roll.results[1]);
+                        offset += 1;
+                    } else {
+                        view.setUint8(offset, 11);
+                        offset += 1;
+                        view.setUint8(offset, 11);
+                        offset += 1;
+                    }
+                    
+                    view.setInt8(offset, data.modifier);
+                    offset += 1;
                 }
 
                 let buffer_array = new Uint8Array(buffer)
@@ -259,8 +371,21 @@
 
             let load_character_button = document.getElementById("load_character")
             let decoder = new TextDecoder()
+            
             load_character_button.onclick = function (evt) {
                 load_code()
+            }
+
+            function decode_string(buffer, view, offset) {
+                let string_length = view.getUint16(offset)
+                console.log(`starting offset: ${offset} string length: ${string_length}`)
+                offset += 2;
+
+                let decoded_string = decoder.decode(buffer.slice(offset, string_length + offset))
+                console.log(decoded_string)
+                offset += string_length
+                console.log(offset)
+                return [decoded_string, offset]
             }
 
             function load_code()
@@ -270,15 +395,13 @@
                 let offset = 0
                 
                 // first we restore the name
-                let name_length = view.getUint16(offset)
-                offset += 2
-
-                name.value = decoder.decode(buffer_array.slice(offset, name_length + offset))
-                offset += name_length
+                let [ret_string, new_offset] = decode_string(buffer_array, view, offset);
+                name.value = ret_string;
+                offset = new_offset;
                 
                 // now we restore the attributes
                 for (let i = 0; i  < 8; i++) {
-                    let attribute_offset = i * 5 + offset
+                    let attribute_offset = offset
                     let d1 = view.getInt8(attribute_offset)
                     let d2 = view.getInt8(attribute_offset + 1)
                     let d3 = view.getInt8(attribute_offset + 2)
@@ -292,6 +415,38 @@
                     let attribute_line = get_attribute(full_name, short_name, roll_result, mod)
                     let current_row = attribute_block.rows[i + 1]
                     update_attribute_row(attribute_line, current_row, i)
+                    offset += 5
+                }
+
+                let background_count = view.getUint8(offset);
+                offset += 1;
+
+                for (let index = 0; index < background_count; index ++) {
+                    let background = {}
+                    let [id_string, id_offset] = decode_string(buffer_array, view, offset);
+                    offset = id_offset;
+                    background.table_id = id_string;
+
+                    let [bak_string, bak_offset] = decode_string(buffer_array, view, offset);
+                    offset = bak_offset;
+                    background.description = bak_string;
+
+                    let [bns_string, bns_offset] = decode_string(buffer_array, view, offset);
+                    offset = bns_offset;
+                    background.bonuses = bns_string
+
+                    let d1 = view.getUint8(offset)
+                    let d2 = view.getUint8(offset + 1)
+                    if (d1 < 11 && d2 < 11) {
+                        background.roll = roll_percent([d1, d2])
+                    }
+                    else {
+                        background.roll = null
+                    }
+
+                    background.modifier = view.getInt8(offset + 2)
+                    create_background_row(background)
+                    offset += 3
                 }
             }
         </script>
